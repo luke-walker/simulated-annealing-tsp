@@ -1,4 +1,4 @@
-# Travelling Salesman Problem w/ Simulated Annealing Optimization
+# Traveling Salesman Problem w/ Simulated Annealing Optimization
 ## Dependencies
 - **Python>=3.8**
 
