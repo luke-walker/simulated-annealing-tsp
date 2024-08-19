@@ -24,4 +24,4 @@
 ```python main.py <args> [options]```
 
 Example:
-```python main.py -n 50 -r 100```
+```python main.py -n 50 -r 100 -i 1000```
