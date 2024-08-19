@@ -56,21 +56,28 @@ def simulated_annealing(current_state: np.ndarray, temperature: float) -> Tuple[
     
     return current_state, current_obj_value
     
+def get_temperature(iteration: int, reheat: int) -> float:
+    """Returns the current temperature"""
+    return 1 / ((iteration % reheat) + 1)
+
 if __name__ == "__main__":
     def exit_error(err: str) -> None:
         print(err)
         exit(1)
 
-    # parse command-line arguments
+    # Parse command-line arguments
     parser = ArgumentParser()
     parser.add_argument("-f", "--file", type=str, help=".csv file path (don't use with -n)", default=None)
     parser.add_argument("-n", "--count", type=int, help="# of random data points (don't use with -f)", default=None)
     parser.add_argument("-i", "--iterations", type=int, help="# of iterations to perform", default=None)
     parser.add_argument("-r", "--reheat", type=int, help="# of iterations before reheating", default=100)
     parser.add_argument("-s", "--seed", type=int, help="prng seed", default=None)
+    parser.add_argument("-a", "--animate", action="store_true", help="display animated data")
     args = parser.parse_args()
 
-    # validate command-line arguments
+    # Validate command-line arguments
+    if not args.animate and not args.iterations:
+        exit_error("-i must be specified if -a is not used")
     if args.file and args.count:
         exit_error("use either -f or -n, not both")
     if not args.file and not args.count:
@@ -87,7 +94,7 @@ if __name__ == "__main__":
     if args.seed:
         np.random.seed(args.seed)
         
-    # populate data points using either .csv file or random points
+    # Populate data points using either .csv file or random points
     points = []
     if args.file:
         with open(args.file, "r") as csv_file:
@@ -107,28 +114,42 @@ if __name__ == "__main__":
     ax2.set_xlabel("Iteration #")
     ax2.set_ylabel("Distance")
 
-    def animate(i):
-        global current_state
+    if args.animate:
+        def animate(i):
+            global current_state
 
-        temperature = 1 / ((i % args.reheat) + 1)
-        current_state, objective_value = simulated_annealing(current_state, temperature)
-        objective_values.append(objective_value)
+            temperature = get_temperature(i, args.reheat)
+            current_state, objective_value = simulated_annealing(current_state, temperature)
+            objective_values.append(objective_value)
 
-        ax1.set_title(f"Current Distance: {objective_values[-1]:.2f}")
-        ax2.set_title(f"Current Temperature: {temperature:.4f}")
+            ax1.set_title(f"Current Distance: {objective_values[-1]:.2f}")
+            ax2.set_title(f"Current Temperature: {temperature:.4f}")
 
-        plot_data1 = np.concatenate((current_state, np.array(current_state[:1])))
-        line1.set_data(plot_data1['x'], plot_data1['y'])
+            point_data = np.concatenate((current_state, np.array(current_state[:1])))
+            line1.set_data(point_data['x'], point_data['y'])
+            line2.set_data([x for x in range(len(objective_values))], objective_values)
+
+            ax2.relim()
+            ax2.autoscale()
+
+        anim_interval = 0.001
+        if args.iterations:
+            anim = animation.FuncAnimation(fig, animate, frames=args.iterations, interval=anim_interval, repeat=False)
+        else:
+            anim = animation.FuncAnimation(fig, animate, frames=args.reheat, interval=anim_interval, repeat=True)
+    else:
+        for i in range(args.iterations):
+            temperature = get_temperature(i, args.reheat)
+            current_state, objective_value = simulated_annealing(current_state, temperature)
+            objective_values.append(objective_value)
+
+        ax1.set_title(f"Final Distance: {objective_values[-1]:.2f}")
+
+        point_data = np.concatenate((current_state, np.array(current_state[:1])))
+        line1.set_data(point_data['x'], point_data['y'])
         line2.set_data([x for x in range(len(objective_values))], objective_values)
 
         ax2.relim()
-        ax2.autoscale()
-
-    anim_interval = 0.001
-    if args.iterations:
-        anim = animation.FuncAnimation(fig, animate, frames=args.iterations, interval=anim_interval, repeat=False)
-    else:
-        anim = animation.FuncAnimation(fig, animate, frames=args.reheat, interval=anim_interval, repeat=True)
 
     plt.show()
     print(f"final distance: {objective_values[-1]}")
